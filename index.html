@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>DISALES</title>
+    <style>
+        :root {
+            --primary: #D9A12F;
+            --dark: #111111;
+            --bg: #F5F6F8;
+            --success: #2E7D32;
+            --danger: #C62828;
+            --white: #FFFFFF;
+            --gray: #D0D5DD;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, sans-serif; }
+        html, body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--dark); padding-bottom: calc(130px + env(safe-area-inset-bottom)); font-size: 17px; }
+
+        .topbar { 
+            background: var(--white); padding: 14px 16px; 
+            padding-top: calc(14px + env(safe-area-inset-top));
+            text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.06); 
+            position: sticky; top: 0; z-index: 999; 
+        }
+        .topbar h1 { font-size: 26px; font-weight: 800; color: var(--primary); margin: 0; letter-spacing: 0.5px; }
+        .topbar p { font-size: 14px; color: #555; margin-top: 3px; font-weight: 500; }
+
+        .container { padding: 12px; width: 100%; }
+        .card { background: var(--white); padding: 18px; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+        .card h3 { font-size: 18px; font-weight: 700; margin-bottom: 14px; color: #111; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+
+        label { font-size: 16px; font-weight: 700; color: #333; display: block; margin-top: 10px; margin-bottom: 6px; }
+        .input-control { 
+            width: 100%; height: 50px; padding: 0 14px; border-radius: 10px; 
+            border: 1.5px solid var(--gray); font-size: 18px; font-weight: 600;
+            background: #fafafa; color: #111; appearance: none; -webkit-appearance: none; 
+            transition: all 0.2s ease;
+        }
+        .input-control:focus { 
+            outline: none; border-color: var(--primary); background: #fff; 
+            box-shadow: 0 0 0 3px rgba(217,161,47,.15); 
+        }
+        select.input-control { 
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E"); 
+            background-repeat: no-repeat; background-position: right 14px top 50%; 
+            background-size: 12px auto; padding-right: 35px; 
+        }
+        input[type="date"] { -webkit-appearance: none; appearance: none; }
+        input[type="date"]::-webkit-inner-spin-button,
+        input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.6; filter: invert(0.3); }
+
+        .btn { 
+            width: 100%; height: 54px; border: none; border-radius: 10px; 
+            font-size: 18px; font-weight: 700; cursor: pointer; margin-top: 16px; 
+            color: white; display: flex; align-items: center; justify-content: center; 
+            gap: 8px; letter-spacing: 0.3px; touch-action: manipulation;
+        }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-gold { background: var(--primary); color: #fff; }
+        .btn-gold:active { background: #c28e27; }
+        .btn-green { background: var(--success); }
+        .btn-green:active { background: #236026; }
+        .btn-gray { background: #666; }
+
+        .item-list { display: flex; flex-direction: column; gap: 12px; }
+        .item-card { 
+            background: #fff; border: 1px solid #eee; border-left: 5px solid var(--primary); 
+            padding: 18px 16px; border-radius: 12px; position: relative; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .item-title { font-weight: 800; font-size: 19px; color: #111; margin-bottom: 6px; padding-right: 45px; line-height: 1.3; }
+        .item-details { font-size: 17px; color: #555; font-weight: 600; line-height: 1.4; }
+        .item-subtotal { font-weight: 800; color: var(--success); font-size: 20px; margin-top: 8px; }
+        .btn-delete { 
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%); 
+            background: #ffebee; border: none; color: var(--danger); font-size: 18px; 
+            width: 44px; height: 44px; border-radius: 50%; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; touch-action: manipulation;
+        }
+        .empty-state { text-align: center; color: #888; padding: 20px; font-size: 17px; font-style: italic; font-weight: 500; }
+
+        .bottom-bar { 
+            position: fixed; bottom: 60px; left: 0; right: 0; background: var(--white); 
+            padding: 14px 18px; box-shadow: 0 -4px 15px rgba(0,0,0,.1); 
+            display: flex; justify-content: space-between; align-items: center; 
+            z-index: 1000; border-radius: 18px 18px 0 0; 
+        }
+        .bottom-bar .total-box { display: flex; flex-direction: column; }
+        .bottom-bar .total-lbl { font-size: 13px; color: #666; font-weight: 800; text-transform: uppercase; }
+        .bottom-bar .total-val { font-size: 26px; color: var(--primary); font-weight: 800; line-height: 1.1; }
+        .bottom-bar .btn { width: auto; height: 50px; margin-top: 0; padding: 0 24px; font-size: 17px; }
+
+        #loader { 
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            background: rgba(0,0,0,0.85); color: white; padding: 14px 24px; border-radius: 10px; 
+            z-index: 2000; font-size: 16px; font-weight: 600; 
+        }
+        .toast { 
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%); 
+            background: var(--success); color: white; padding: 14px 26px; border-radius: 24px; 
+            font-size: 15px; font-weight: 700; z-index: 2000; display: none; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: center; max-width: 90%; line-height: 1.4;
+        }
+        .toast.error { background: var(--danger); }
+
+        .autocomplete-wrapper { position: relative; }
+        .autocomplete-list { 
+            position: absolute; top: calc(100% - 4px); left: 0; right: 0; background: white; 
+            border: 1.5px solid var(--gray); border-top: none; border-radius: 0 0 10px 10px; 
+            max-height: 220px; overflow-y: auto; z-index: 1001; 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.12); display: none; list-style: none; -webkit-overflow-scrolling: touch;
+        }
+        .autocomplete-list li { 
+            padding: 15px; border-bottom: 1px solid #f0f0f0; font-size: 16px; 
+            font-weight: 600; cursor: pointer; color: #333; 
+        }
+        .autocomplete-list li:last-child { border-bottom: none; }
+        .autocomplete-list li:hover, .autocomplete-list li:active { background: #fdf8ed; color: var(--primary); }
+
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--white);
+            display: flex; justify-content: space-around;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08); z-index: 1001; border-radius: 16px 16px 0 0;
+        }
+        .nav-item {
+            flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+            padding: 4px; cursor: pointer; border: none; background: none;
+            color: #888; font-size: 12px; font-weight: 700; transition: color 0.2s;
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-item .icon { font-size: 26px; }
+
+        .screen { display: none; padding-bottom: 80px; }
+        .screen.active { display: block; }
+
+        .estado-header {
+            background: var(--primary); color: white; padding: 16px;
+            border-radius: 12px; margin-bottom: 12px; text-align: center;
+        }
+        .estado-header h2 { font-size: 22px; margin-bottom: 4px; }
+        .estado-header .deuda-total { font-size: 32px; font-weight: 800; }
+
+        .factura-item {
+            background: white; border-radius: 10px; padding: 14px;
+            margin-bottom: 10px; border-left: 4px solid var(--primary);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .factura-item.pagada { border-left-color: var(--success); }
+        .factura-item.pendiente { border-left-color: var(--danger); }
+
+        .kpi-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+        }
+        .kpi-card {
+            background: white; border-radius: 12px; padding: 16px;
+            text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .kpi-card .label { font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+        .kpi-card .value { font-size: 24px; font-weight: 800; color: var(--dark); }
+        .kpi-card .value.success { color: var(--success); }
+        .kpi-card .value.primary { color: var(--primary); }
+        .kpi-card .value.danger { color: var(--danger); }
+
+        .saldo-box {
+            margin-top: 10px;
+            padding: 12px;
+            background: #fff3f3;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .saldo-box .label { font-size: 13px; color: #666; font-weight: 700; }
+        .saldo-box .value { font-size: 22px; font-weight: 800; color: var(--danger); }
+
+        @media (max-width: 360px) {
+            .input-control { padding: 0 10px; font-size: 16px; }
+            .btn { font-size: 16px; height: 50px; }
+            .bottom-bar .total-val { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="toast" class="toast">Mensaje</div>
+    <div id="loader">Procesando...</div>
+
+    <!-- PANTALLA VENTAS -->
+    <div id="screen-ventas" class="screen active">
+        <div class="topbar">
+            <h1>DISALES</h1>
+            <p>Distribucion de Alimentos y Especias</p>
+        </div>
+        <div class="container">
+            <div class="card">
+                <h3>Datos de Factura</h3>
+                <label>Cliente</label>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="clienteSearch" class="input-control" placeholder="Buscar cliente..." autocomplete="off">
+                    <input type="hidden" id="clienteId">
+                    <ul id="clienteResultados" class="autocomplete-list"></ul>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <div style="flex: 1;">
+                        <label>Tipo Venta</label>
+                        <select id="tipoVenta" class="input-control">
+                            <option value="CONTADO">CONTADO</option>
+                            <option value="CREDITO">CREDITO</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Fecha</label>
+                        <input id="fecha" type="date" class="input-control">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Agregar Producto</h3>
+                <div style="display: flex; gap: 12px; margin-bottom: 4px;">
+                    <div style="flex: 1.8;" class="autocomplete-wrapper">
+                        <label>Buscar Producto</label>
+                        <input type="text" id="productoSearch" class="input-control" placeholder="Ej: Azucar..." autocomplete="off">
+                        <input type="hidden" id="productoId">
+                        <input type="hidden" id="productoNombreTemp">
+                        <ul id="productoResultados" class="autocomplete-list"></ul>
+                    </div>
+                    <div style="flex: 1.2;">
+                        <label>Medida</label>
+                        <select id="unidad" class="input-control">
+                            <option value="">...</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 0.9;">
+                        <label>Cant.</label>
+                        <input id="cantidad" type="number" inputmode="numeric" min="1" value="1" class="input-control" oninput="calcularTotalFila()">
+                    </div>
+                    <div style="flex: 1.1;">
+                        <label>Precio</label>
+                        <input id="precio" type="number" inputmode="decimal" min="0" step="0.01" class="input-control" oninput="calcularTotalFila()">
+                    </div>
+                    <div style="flex: 1.4;">
+                        <label>Total</label>
+                        <input id="totalFila" type="text" class="input-control" readonly style="background-color: #eef2f5; font-weight: 800; color: var(--primary); text-align: center;" placeholder="C$ 0.00">
+                    </div>
+                </div>
+                <button class="btn btn-gold" onclick="agregarProducto()">Agregar a la Lista</button>
+            </div>
+
+            <div class="card">
+                <h3>Lista de Compra</h3>
+                <div id="productos-lista" class="item-list">
+                    <div class="empty-state">La lista esta vacia.</div>
+                </div>
+            </div>
+
+            <div class="card" id="abonoCard" style="display:none;">
+                <h3>Abono (opcional)</h3>
+                <label>Si el cliente deja abono, ingreselo:</label>
+                <input type="number" id="abonoInicial" class="input-control" inputmode="decimal" min="0" step="0.01" placeholder="0.00" oninput="calcularSaldoPendiente()">
+                <div class="saldo-box">
+                    <div class="label">SALDO PENDIENTE</div>
+                    <div class="value" id="saldoPendienteDisplay">C$ 0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-bar">
+            <div class="total-box">
+                <span class="total-lbl">Total Factura</span>
+                <span id="totalFactura" class="total-val">C$ 0.00</span>
+            </div>
+            <button class="btn btn-green" id="btnGuardar" onclick="guardarVenta()">Guardar</button>
+        </div>
+    </div>
+
+    <!-- PANTALLA ABONOS -->
+    <div id="screen-abonos" class="screen">
+        <div class="topbar"><h1>Abonos</h1></div>
+        <div class="container">
+            <div class="card">
+                <h3>Buscar Cliente</h3>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="abonoClienteSearch" class="input-control" placeholder="Buscar cliente..." autocomplete="off">
+                    <input type="hidden" id="abonoClienteId">
+                    <ul id="abonoClienteResultados" class="autocomplete-list"></ul>
+                </div>
+                <button class="btn btn-gold" onclick="buscarFacturasPendientes()">Ver Facturas Pendientes</button>
+            </div>
+            <div id="abono-facturas-container" style="display:none;">
+                <div class="card">
+                    <h3>Facturas Pendientes</h3>
+                    <div id="abono-facturas-lista"></div>
+                </div>
+                <div class="card" id="abono-form-container" style="display:none;">
+                    <h3>Registrar Abono</h3>
+                    <label>Factura Seleccionada</label>
+                    <input type="text" id="abonoFacturaInfo" class="input-control" readonly style="background:#f5f5f5;">
+                    <input type="hidden" id="abonoFacturaId">
+                    <label>Monto a Abonar (C$)</label>
+                    <input type="number" id="abonoMonto" class="input-control" inputmode="decimal" min="0" step="0.01">
+                    <label>Observaciones</label>
+                    <input type="text" id="abonoObservaciones" class="input-control" placeholder="Opcional">
+                    <button class="btn btn-green" onclick="registrarAbono()">Registrar Abono</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA CLIENTES -->
+    <div id="screen-clientes" class="screen">
+        <div class="topbar"><h1>Clientes</h1></div>
+        <div class="container">
+            <div class="card">
+                <h3>Nuevo Cliente</h3>
+                <label>Nombre *</label>
+                <input type="text" id="nuevoClienteNombre" class="input-control" placeholder="Nombre completo">
+                <label>Telefono</label>
+                <input type="text" id="nuevoClienteTelefono" class="input-control" placeholder="8XXX-XXXX">
+                <label>Direccion</label>
+                <input type="text" id="nuevoClienteDireccion" class="input-control" placeholder="Direccion">
+                <label>Observaciones</label>
+                <input type="text" id="nuevoClienteObs" class="input-control" placeholder="Opcional">
+                <button class="btn btn-gold" onclick="guardarNuevoCliente()">Guardar Cliente</button>
+            </div>
+            <div class="card">
+                <h3>Estado de Cuenta</h3>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="estadoClienteSearch" class="input-control" placeholder="Buscar cliente..." autocomplete="off">
+                    <input type="hidden" id="estadoClienteId">
+                    <ul id="estadoClienteResultados" class="autocomplete-list"></ul>
+                </div>
+                <button class="btn btn-gold" onclick="verEstadoCuenta()">Ver Estado de Cuenta</button>
+                <div id="estado-cuenta-resultado" style="margin-top:16px; display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA REPORTES -->
+    <div id="screen-reportes" class="screen">
+        <div class="topbar"><h1>Reportes</h1></div>
+        <div class="container">
+            <div class="card">
+                <h3>Resumen del Dia</h3>
+                <label>Fecha</label>
+                <input type="date" id="reporteFecha" class="input-control">
+                <button class="btn btn-gold" onclick="cargarReporteDia()">Generar Reporte</button>
+            </div>
+            <div id="reporte-resultado" style="display:none;">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="label">Total Ventas</div>
+                        <div class="value primary" id="kpi-total-ventas">C$ 0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="label">Facturas</div>
+                        <div class="value" id="kpi-num-facturas">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="label">Contado</div>
+                        <div class="value success" id="kpi-total-contado">C$ 0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="label">Credito</div>
+                        <div class="value danger" id="kpi-total-credito">C$ 0</div>
+                    </div>
+                </div>
+                <div class="kpi-card" style="margin-bottom:14px;">
+                    <div class="label">Total Abonos Recibidos</div>
+                    <div class="value success" id="kpi-total-abonos">C$ 0</div>
+                </div>
+                <div class="card">
+                    <h3>Facturas del Dia</h3>
+                    <div id="reporte-facturas-lista"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAVEGACION INFERIOR -->
+    <div class="bottom-nav">
+        <button class="nav-item active" onclick="showScreen('ventas', this)">
+            <span class="icon">&#128221;</span><span>Ventas</span>
+        </button>
+        <button class="nav-item" onclick="showScreen('abonos', this)">
+            <span class="icon">&#128176;</span><span>Abonos</span>
+        </button>
+        <button class="nav-item" onclick="showScreen('clientes', this)">
+            <span class="icon">&#128101;</span><span>Clientes</span>
+        </button>
+        <button class="nav-item" onclick="showScreen('reportes', this)">
+            <span class="icon">&#128202;</span><span>Reportes</span>
+        </button>
+    </div>
+
+    <script>
+        let listadoClientes = [];
+        let listadoProductos = [];
+        let listadoUnidades = [];
+        let detalleFactura = [];
+        let isSubmitting = false;
+        const STORAGE_KEY = 'disales_factura_draft';
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+            const today = (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+            document.getElementById("fecha").value = today;
+            document.getElementById("reporteFecha").value = today;
+            recuperarBorrador();
+
+            cargarCatalogo('getClientes', (datos) => {
+                listadoClientes = datos;
+                configurarBuscador('clienteSearch', 'clienteId', 'clienteResultados', listadoClientes);
+                configurarBuscador('abonoClienteSearch', 'abonoClienteId', 'abonoClienteResultados', listadoClientes);
+                configurarBuscador('estadoClienteSearch', 'estadoClienteId', 'estadoClienteResultados', listadoClientes);
+            });
+
+            cargarCatalogo('getProductos', (datos) => {
+                listadoProductos = datos;
+                configurarBuscador('productoSearch', 'productoId', 'productoResultados', listadoProductos, (item) => {
+                    document.getElementById("precio").value = item.precio || "";
+                    document.getElementById("productoNombreTemp").value = item.nombre;
+                    calcularTotalFila();
+                    setTimeout(() => {
+                        document.getElementById("cantidad").focus();
+                        document.getElementById("cantidad").select();
+                    }, 100);
+                });
+            });
+
+            cargarCatalogo('getUnidades', (datos) => {
+                listadoUnidades = datos;
+                const select = document.getElementById("unidad");
+                select.innerHTML = '<option value="">...</option>';
+                datos.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = u.nombre;
+                    select.appendChild(opt);
+                });
+            });
+
+            document.getElementById("tipoVenta").addEventListener("change", function() {
+                const abonoCard = document.getElementById("abonoCard");
+                if (this.value === "CREDITO") {
+                    abonoCard.style.display = "block";
+                    calcularSaldoPendiente();
+                } else {
+                    abonoCard.style.display = "none";
+                    document.getElementById("abonoInicial").value = "";
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.autocomplete-wrapper')) {
+                    document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none');
+                }
+            });
+
+            setInterval(guardarBorrador, 10000);
+        });
+
+        function showScreen(name, btn) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('screen-' + name).classList.add('active');
+            if (btn) btn.classList.add('active');
+        }
+
+        function cargarCatalogo(funcion, onSuccess) {
+            mostrarLoader(true);
+            google.script.run
+                .withSuccessHandler((res) => {
+                    mostrarLoader(false);
+                    if (res && res.success) {
+                        onSuccess(res.data || res);
+                    } else {
+                        mostrarToast("Error cargando datos: " + (res?.error || "Desconocido"), "error");
+                    }
+                })
+                .withFailureHandler((err) => {
+                    mostrarLoader(false);
+                    mostrarToast("No se pudieron cargar los datos. Revisa tu conexion.", "error");
+                    console.error(err);
+                })[funcion]();
+        }
+
+        function guardarBorrador() {
+            if (detalleFactura.length === 0 && !document.getElementById("clienteId").value) {
+                localStorage.removeItem(STORAGE_KEY);
+                return;
+            }
+            const borrador = {
+                clienteId: document.getElementById("clienteId").value,
+                clienteNombre: document.getElementById("clienteSearch").value,
+                tipoVenta: document.getElementById("tipoVenta").value,
+                fecha: document.getElementById("fecha").value,
+                detalle: detalleFactura
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(borrador));
+        }
+
+        function recuperarBorrador() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return;
+            try {
+                const b = JSON.parse(raw);
+                if (b.clienteId) {
+                    document.getElementById("clienteId").value = b.clienteId;
+                    document.getElementById("clienteSearch").value = b.clienteNombre || "";
+                }
+                if (b.tipoVenta) {
+                    document.getElementById("tipoVenta").value = b.tipoVenta;
+                    if (b.tipoVenta === "CREDITO") {
+                        document.getElementById("abonoCard").style.display = "block";
+                    }
+                }
+                if (b.fecha) document.getElementById("fecha").value = b.fecha;
+                if (Array.isArray(b.detalle) && b.detalle.length > 0) {
+                    detalleFactura = b.detalle;
+                    renderizarDetalle();
+                    mostrarToast("Factura en progreso recuperada", "error");
+                }
+            } catch(e) {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        }
+
+        function calcularTotalFila() {
+            const cantidad = parseFloat(document.getElementById("cantidad").value) || 0;
+            const precio = parseFloat(document.getElementById("precio").value) || 0;
+            document.getElementById("totalFila").value = "C$ " + (cantidad * precio).toFixed(2);
+        }
+
+        function calcularSaldoPendiente() {
+            const total = detalleFactura.reduce((acc, curr) => acc + curr.subtotal, 0);
+            const abono = parseFloat(document.getElementById("abonoInicial").value) || 0;
+            const saldo = total - abono;
+            document.getElementById("saldoPendienteDisplay").textContent = "C$ " + (saldo > 0 ? saldo.toFixed(2) : "0.00");
+        }
+
+        function configurarBuscador(inputId, hiddenId, listId, dataArray, callbackOnSelect) {
+            const input = document.getElementById(inputId);
+            const hidden = document.getElementById(hiddenId);
+            const list = document.getElementById(listId);
+            let selectedItem = null;
+            let debounceTimer;
+
+            input.setAttribute('autocomplete', 'off');
+
+            input.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const term = this.value.toLowerCase().trim();
+                    list.innerHTML = '';
+                    if (selectedItem && input.value !== selectedItem.nombre) {
+                        hidden.value = ''; selectedItem = null;
+                    }
+                    if (!term) { list.style.display = 'none'; hidden.value = ''; selectedItem = null; return; }
+                    const filtrados = dataArray.filter(item => item.nombre.toLowerCase().includes(term));
+                    if (filtrados.length === 0) {
+                        const li = document.createElement('li');
+                        li.textContent = "Sin resultados";
+                        li.style.cssText = "color:#888; text-align:center; padding:15px;";
+                        list.appendChild(li); list.style.display = 'block'; return;
+                    }
+                    filtrados.forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = item.nombre;
+                        li.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            input.value = item.nombre; hidden.value = item.id; selectedItem = item;
+                            list.style.display = 'none'; input.blur();
+                            if (callbackOnSelect) callbackOnSelect(item);
+                        });
+                        list.appendChild(li);
+                    });
+                    list.style.display = 'block';
+                }, 150);
+            });
+
+            input.addEventListener('focus', () => {
+                setTimeout(() => input.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+            });
+        }
+
+        function agregarProducto() {
+            const productoId = document.getElementById("productoId").value;
+            const productoInput = document.getElementById("productoSearch").value.trim();
+            const productoNombre = document.getElementById("productoNombreTemp").value || productoInput;
+            const unidadSelect = document.getElementById("unidad");
+            const cantidad = parseFloat(document.getElementById("cantidad").value);
+            const precio = parseFloat(document.getElementById("precio").value);
+
+            if (!productoId) { mostrarToast("Selecciona un producto de la lista.", "error"); document.getElementById("productoSearch").focus(); return; }
+            if (!unidadSelect.value) { mostrarToast("Selecciona una unidad de medida.", "error"); unidadSelect.focus(); return; }
+            if (!cantidad || cantidad <= 0) { mostrarToast("Ingresa una cantidad valida mayor a 0.", "error"); document.getElementById("cantidad").focus(); return; }
+            if (isNaN(precio) || precio < 0) { mostrarToast("Ingresa un precio valido.", "error"); document.getElementById("precio").focus(); return; }
+
+            detalleFactura.push({
+                productoId, productoNombre,
+                unidadId: unidadSelect.value,
+                unidadNombre: unidadSelect.options[unidadSelect.selectedIndex].text,
+                cantidad, precio, subtotal: cantidad * precio,
+                uid: crypto.randomUUID()
+            });
+
+            document.getElementById("productoSearch").value = "";
+            document.getElementById("productoId").value = "";
+            document.getElementById("productoNombreTemp").value = "";
+            document.getElementById("cantidad").value = "1";
+            document.getElementById("precio").value = "";
+            document.getElementById("totalFila").value = "C$ 0.00";
+            document.getElementById("productoSearch").focus();
+            renderizarDetalle();
+            if (document.getElementById("tipoVenta").value === "CREDITO") calcularSaldoPendiente();
+            guardarBorrador();
+        }
+
+        function eliminarProducto(uid) {
+            detalleFactura = detalleFactura.filter(item => item.uid !== uid);
+            renderizarDetalle();
+            if (document.getElementById("tipoVenta").value === "CREDITO") calcularSaldoPendiente();
+            guardarBorrador();
+        }
+
+        function renderizarDetalle() {
+            const lista = document.getElementById("productos-lista");
+            const totalUI = document.getElementById("totalFactura");
+            if(detalleFactura.length === 0) {
+                lista.innerHTML = '<div class="empty-state">La lista esta vacia.</div>';
+                totalUI.innerText = "C$ 0.00"; return;
+            }
+            lista.innerHTML = ""; let sumaTotal = 0;
+            detalleFactura.forEach(item => {
+                sumaTotal += item.subtotal;
+                const card = document.createElement('div'); card.className = 'item-card';
+                const title = document.createElement('div'); title.className = 'item-title'; title.textContent = item.productoNombre;
+                const details = document.createElement('div'); details.className = 'item-details';
+                details.textContent = item.cantidad + " " + item.unidadNombre + " x C$ " + item.precio.toFixed(2);
+                const subtotal = document.createElement('div'); subtotal.className = 'item-subtotal';
+                subtotal.textContent = "C$ " + item.subtotal.toFixed(2);
+                const btnDelete = document.createElement('button'); btnDelete.className = 'btn-delete';
+                btnDelete.setAttribute('aria-label', 'Eliminar producto'); btnDelete.innerHTML = '&#10006;';
+                btnDelete.onclick = () => eliminarProducto(item.uid);
+                card.appendChild(title); card.appendChild(details); card.appendChild(subtotal); card.appendChild(btnDelete);
+                lista.appendChild(card);
+            });
+            totalUI.innerText = "C$ " + sumaTotal.toFixed(2);
+        }
+
+        function guardarVenta() {
+            if (isSubmitting) return;
+            const clienteId = document.getElementById("clienteId").value;
+            const tipoVenta = document.getElementById("tipoVenta").value;
+            const fecha = document.getElementById("fecha").value;
+
+            if(!clienteId) { mostrarToast("Selecciona un cliente de la lista.", "error"); document.getElementById("clienteSearch").focus(); return; }
+            if(detalleFactura.length === 0) { mostrarToast("Agrega al menos un producto.", "error"); return; }
+
+            const sumaTotal = detalleFactura.reduce((acc, curr) => acc + curr.subtotal, 0);
+            const abonoInicial = tipoVenta === "CREDITO" ? parseFloat(document.getElementById("abonoInicial").value) || 0 : 0;
+            if (tipoVenta === "CREDITO" && abonoInicial > sumaTotal) { mostrarToast("El abono no puede ser mayor al total.", "error"); return; }
+            if (tipoVenta === "CREDITO" && !confirm("Confirmas venta al CREDITO por C$ " + sumaTotal.toFixed(2) + "?")) return;
+
+            const payload = {
+                clienteId, tipoVenta, fecha, totalFactura: sumaTotal, abonoInicial,
+                detalle: detalleFactura.map(d => ({
+                    productoId: d.productoId, unidadId: d.unidadId,
+                    cantidad: d.cantidad, precio: d.precio, subtotal: d.subtotal
+                }))
+            };
+
+            isSubmitting = true;
+            const btnGuardar = document.getElementById("btnGuardar");
+            if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.style.opacity = '0.6'; btnGuardar.textContent = 'Guardando...'; }
+            mostrarLoader(true);
+
+            google.script.run
+                .withSuccessHandler((res) => {
+                    isSubmitting = false; mostrarLoader(false);
+                    if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.style.opacity = '1'; btnGuardar.textContent = 'Guardar'; }
+                    if(res.success) { mostrarToast("Factura #" + res.numeroFactura + " guardada"); localStorage.removeItem(STORAGE_KEY); reiniciarFormulario(); }
+                    else { mostrarToast("Error: " + res.error, "error"); }
+                })
+                .withFailureHandler((err) => {
+                    isSubmitting = false; mostrarLoader(false);
+                    if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.style.opacity = '1'; btnGuardar.textContent = 'Guardar'; }
+                    mostrarToast("Error de conexion. Intenta de nuevo.", "error"); console.error(err);
+                })
+                .guardarVenta(payload);
+        }
+
+        function reiniciarFormulario() {
+            document.getElementById("clienteSearch").value = "";
+            document.getElementById("clienteId").value = "";
+            document.getElementById("tipoVenta").value = "CONTADO";
+            document.getElementById("abonoCard").style.display = "none";
+            document.getElementById("abonoInicial").value = "";
+            detalleFactura = []; renderizarDetalle(); guardarBorrador();
+        }
+
+        // ==================== ABONOS ====================
+        function buscarFacturasPendientes() {
+            const clienteId = document.getElementById("abonoClienteId").value;
+            if (!clienteId) { mostrarToast("Selecciona un cliente primero", "error"); return; }
+            mostrarLoader(true);
+            google.script.run
+                .withSuccessHandler((res) => {
+                    mostrarLoader(false);
+                    if (res.success) { renderizarFacturasPendientes(res.data); }
+                    else { mostrarToast(res.error, "error"); }
+                })
+                .withFailureHandler((err) => { mostrarLoader(false); mostrarToast("Error de conexion", "error"); })
+                .getFacturasPendientes(clienteId);
+        }
+
+        function renderizarFacturasPendientes(facturas) {
+            const container = document.getElementById("abono-facturas-container");
+            const lista = document.getElementById("abono-facturas-lista");
+            const formContainer = document.getElementById("abono-form-container");
+            container.style.display = "block"; formContainer.style.display = "none"; lista.innerHTML = "";
+            if (facturas.length === 0) {
+                lista.innerHTML = '<div class="empty-state">Este cliente no tiene facturas pendientes.</div>'; return;
+            }
+            facturas.forEach(f => {
+                const card = document.createElement('div'); card.className = 'factura-item pendiente';
+                card.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center;"><div><div style="font-weight:800; font-size:17px;">Factura #' + f.numeroFactura + '</div><div style="font-size:14px; color:#666; margin-top:2px;">' + f.fecha + '</div></div><div style="text-align:right;"><div style="font-weight:800; font-size:18px; color:var(--danger);">C$ ' + f.saldoPendiente.toFixed(2) + '</div><div style="font-size:12px; color:#888;">de C$ ' + f.totalFactura.toFixed(2) + '</div></div></div>';
+                const btn = document.createElement('button'); btn.className = 'btn btn-gold';
+                btn.style.cssText = 'margin-top:10px; height:42px; font-size:15px;';
+                btn.textContent = 'Seleccionar para Abonar';
+                btn.onclick = () => seleccionarFacturaAbono(f.facturaId, 'Factura #' + f.numeroFactura + ' - Saldo: C$ ' + f.saldoPendiente.toFixed(2), f.saldoPendiente);
+                card.appendChild(btn); lista.appendChild(card);
+            });
+            const btnEstado = document.createElement('button');
+            btnEstado.className = 'btn btn-gray';
+            btnEstado.style.cssText = 'margin-top:12px; height:46px; font-size:15px;';
+            btnEstado.textContent = 'Ver Estado de Cuenta Completo';
+            btnEstado.onclick = () => {
+                document.getElementById("estadoClienteId").value = document.getElementById("abonoClienteId").value;
+                document.getElementById("estadoClienteSearch").value = document.getElementById("abonoClienteSearch").value;
+                showScreen('clientes', document.querySelectorAll('.nav-item')[2]);
+                setTimeout(verEstadoCuenta, 300);
+            };
+            lista.appendChild(btnEstado);
+        }
+
+        function seleccionarFacturaAbono(facturaId, info, saldo) {
+            document.getElementById("abonoFacturaId").value = facturaId;
+            document.getElementById("abonoFacturaInfo").value = info;
+            document.getElementById("abonoMonto").value = "";
+            document.getElementById("abonoMonto").max = saldo;
+            document.getElementById("abono-form-container").style.display = "block";
+            setTimeout(() => document.getElementById("abonoMonto").focus(), 100);
+        }
+
+        function registrarAbono() {
+            const clienteId = document.getElementById("abonoClienteId").value;
+            const facturaId = document.getElementById("abonoFacturaId").value;
+            const monto = parseFloat(document.getElementById("abonoMonto").value);
+            const observaciones = document.getElementById("abonoObservaciones").value;
+            if (!facturaId) { mostrarToast("Selecciona una factura", "error"); return; }
+            if (!monto || monto <= 0) { mostrarToast("Ingresa un monto valido", "error"); return; }
+            mostrarLoader(true);
+            google.script.run
+                .withSuccessHandler((res) => {
+                    mostrarLoader(false);
+                    if (res.success) { mostrarToast(res.mensaje); document.getElementById("abono-form-container").style.display = "none"; buscarFacturasPendientes(); }
+                    else { mostrarToast(res.error, "error"); }
+                })
+                .withFailureHandler((err) => { mostrarLoader(false); mostrarToast("Error de conexion", "error"); })
+                .guardarAbono({ clienteId, facturaId, monto, observaciones });
+        }
+
+        // ==================== CLIENTES ====================
+        function guardarNuevoCliente() {
+            const nombre = document.getElementById("nuevoClienteNombre").value.trim();
+            const telefono = document.getElementById("nuevoClienteTelefono").value.trim();
+            const direccion = document.getElementById("nuevoClienteDireccion").value.trim();
+            const observaciones = document.getElementById("nuevoClienteObs").value.trim();
+            if (!nombre) { mostrarToast("El nombre es obligatorio.", "error"); return; }
+            mostrarLoader(true);
+            google.script.run
+                .withSuccessHandler((res) => {
+                    mostrarLoader(false);
+                    if (res.success) {
+                        mostrarToast(res.mensaje);
+                        document.getElementById("nuevoClienteNombre").value = "";
+                        document.getElementById("nuevoClienteTelefono").value = "";
+                        document.getElementById("nuevoClienteDireccion").value = "";
+                        document.getElementById("nuevoClienteObs").value = "";
+                        cargarCatalogo('getClientes', (datos) => {
+                            listadoClientes = datos;
+                            configurarBuscador('clienteSearch', 'clienteId', 'clienteResultados', listadoClientes);
+                            configurarBuscador('abonoClienteSearch', 'abonoClienteId', 'abonoClienteResultados', listadoClientes);
+                            configurarBuscador('estadoClienteSearch', 'estadoClienteId', 'estadoClienteResultados', listadoClientes);
+                        });
+                    } else { mostrarToast(res.error, "error"); }
+                })
+                .withFailureHandler((err) => { mostrarLoader(false); mostrarToast("Error de conexion", "error"); })
+                .guardarCliente({ nombre, telefono, direccion, observaciones });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div'); div.textContent = text; return div.innerHTML;
+        }
+
+        function verEstadoCuenta() {
+            const clienteId = document.getElementById("estadoClienteId").value;
+            if (!clienteId) { mostrarToast("Selecciona un cliente", "error"); return; }
+            mostrarLoader(true);
+            google.script.run
+                .withSuccessHandler((res) => {
+                    mostrarLoader(false);
+                    if (res.success) { renderizarEstadoCuenta(res); }
+                    else { mostrarToast(res.error, "error"); }
+                })
+                .withFailureHandler((err) => { mostrarLoader(false); mostrarToast("Error de conexion", "error"); })
+                .getEstadoCuenta(clienteId);
+        }
+
+        function renderizarEstadoCuenta(data) {
+            const container = document.getElementById("estado-cuenta-resultado");
+            container.style.display = "block";
+            let html = '<div class="estado-header"><h2>' + escapeHtml(data.clienteNombre) + '</h2><div style="font-size:14px; opacity:0.9;">Saldo Total Pendiente</div><div class="deuda-total">C$ ' + data.totalDeuda.toFixed(2) + '</div></div>';
+            if (data.facturas.length > 0) {
+                html += '<h3 style="margin-bottom:10px; font-size:16px;">Facturas</h3>';
+                data.facturas.forEach(f => {
+                    const clase = f.estado === "PAGADA" ? "pagada" : "pendiente";
+                    const color = f.estado === "PAGADA" ? "var(--success)" : "var(--danger)";
+                    html += '<div class="factura-item ' + clase + '"><div style="display:flex; justify-content:space-between;"><div><div style="font-weight:800;">Factura #' + f.numeroFactura + '</div><div style="font-size:13px; color:#666;">' + f.fecha + ' &middot; ' + f.tipoVenta + '</div></div><div style="text-align:right;"><div style="font-weight:800;">C$ ' + f.total.toFixed(2) + '</div><div style="font-size:13px; color:' + color + '; font-weight:700;">' + f.estado + '</div></div></div>' + (f.saldo > 0 ? '<div style="margin-top:6px; font-size:13px; color:#666;">Saldo: C$ ' + f.saldo.toFixed(2) + ' &middot; Abonado: C$ ' + f.abonos.toFixed(2) + '</div>' : '') + '</div>';
+                });
+            }
+            if (data.abonos.length > 0) {
+                html += '<h3 style="margin:16px 0 10px; font-size:16px;">Abonos Realizados</h3>';
+                data.abonos.forEach(a => {
+                    html += '<div class="factura-item pagada"><div style="display:flex; justify-content:space-between;"><div><div style="font-weight:700;">Abono a Factura #' + a.facturaId.substring(0,8) + '</div><div style="font-size:13px; color:#666;">' + a.fecha + '</div></div><div style="font-weight:800; color:var(--success);">C$ ' + a.monto.toFixed(2) + '</div></div></div>';
+                });
+            }
+            container.innerHTML = html;
+        }
+
+        // ==================== REPORTES ====================
+        function cargarReporteDia() {
+            const fecha = document.getElementById("reporteFecha").value;
+            if (!fecha) { mostrarToast("Selecciona una fecha", "error"); return; }
+            mostrarLoader(true);
+            google.script.run
+                .withSuccessHandler((res) => {
+                    mostrarLoader(false);
+                    if (res.success) {
+                        document.getElementById("reporte-resultado").style.display = "block";
+                        document.getElementById("kpi-total-ventas").textContent = "C$ " + res.totalVentas.toFixed(2);
+                        document.getElementById("kpi-num-facturas").textContent = res.numFacturas;
+                        document.getElementById("kpi-total-contado").textContent = "C$ " + res.totalContado.toFixed(2);
+                        document.getElementById("kpi-total-credito").textContent = "C$ " + res.totalCredito.toFixed(2);
+                        document.getElementById("kpi-total-abonos").textContent = "C$ " + res.totalAbonos.toFixed(2);
+                        const lista = document.getElementById("reporte-facturas-lista");
+                        if (res.facturas.length === 0) { lista.innerHTML = '<div class="empty-state">Sin facturas este dia.</div>'; }
+                        else {
+                            lista.innerHTML = "";
+                            res.facturas.forEach(f => {
+                                const card = document.createElement('div'); card.className = 'factura-item'; card.style.marginBottom = '8px';
+                                card.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center;"><div><div style="font-weight:800;">#' + f.numero + '</div><div style="font-size:13px; color:#666;">' + f.clienteId + '</div></div><div style="text-align:right;"><div style="font-weight:800;">C$ ' + f.total.toFixed(2) + '</div><div style="font-size:12px; color:' + (f.tipo === 'CONTADO' ? 'var(--success)' : 'var(--danger)') + '; font-weight:700;">' + f.tipo + '</div></div></div>';
+                                lista.appendChild(card);
+                            });
+                        }
+                    } else { mostrarToast(res.error, "error"); }
+                })
+                .withFailureHandler((err) => { mostrarLoader(false); mostrarToast("Error de conexion", "error"); })
+                .getReporteDia(fecha);
+        }
+
+        // ==================== UI HELPERS ====================
+        function mostrarLoader(show) { document.getElementById("loader").style.display = show ? "block" : "none"; }
+
+        function mostrarToast(msg, tipo) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            if (tipo === "error") { toast.classList.add("error"); } else { toast.classList.remove("error"); }
+            toast.style.display = "block"; clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => { toast.style.display = "none"; }, tipo === "error" ? 4000 : 3000);
+        }
+    </script>
+</body>
+</html>
+
