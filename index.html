@@ -328,15 +328,31 @@
                 <button class="btn btn-gold" onclick="guardarNuevoCliente()">Guardar Cliente</button>
             </div>
             <div class="card">
-                <h3>Estado de Cuenta</h3>
+                <h3>Clientes Registrados</h3>
+                <div class="autocomplete-wrapper" style="margin-bottom:10px;">
+                    <input type="text" id="listaClientesFiltro" class="input-control" placeholder="Filtrar por nombre..." autocomplete="off" oninput="renderizarListaClientes()">
+                </div>
+                <div id="clientes-lista" class="item-list">
+                    <div class="empty-state">Cargando...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA ESTADO DE CUENTA -->
+    <div id="screen-estado" class="screen">
+        <div class="topbar"><h1>Estado de Cuenta</h1></div>
+        <div class="container">
+            <div class="card">
+                <h3>Buscar Cliente</h3>
                 <div class="autocomplete-wrapper">
                     <input type="text" id="estadoClienteSearch" class="input-control" placeholder="Buscar cliente..." autocomplete="off">
                     <input type="hidden" id="estadoClienteId">
                     <ul id="estadoClienteResultados" class="autocomplete-list"></ul>
                 </div>
                 <button class="btn btn-gold" onclick="verEstadoCuenta()">Ver Estado de Cuenta</button>
-                <div id="estado-cuenta-resultado" style="margin-top:16px; display:none;"></div>
             </div>
+            <div id="estado-cuenta-resultado" style="margin-top:16px; display:none;"></div>
         </div>
     </div>
 
@@ -392,6 +408,9 @@
         <button class="nav-item" onclick="showScreen('clientes', this)">
             <span class="icon">&#128101;</span><span>Clientes</span>
         </button>
+        <button class="nav-item" onclick="showScreen('estado', this)">
+            <span class="icon">&#128179;</span><span>Cuenta</span>
+        </button>
         <button class="nav-item" onclick="showScreen('reportes', this)">
             <span class="icon">&#128202;</span><span>Reportes</span>
         </button>
@@ -417,6 +436,7 @@
                 configurarBuscador('clienteSearch', 'clienteId', 'clienteResultados', listadoClientes);
                 configurarBuscador('abonoClienteSearch', 'abonoClienteId', 'abonoClienteResultados', listadoClientes);
                 configurarBuscador('estadoClienteSearch', 'estadoClienteId', 'estadoClienteResultados', listadoClientes);
+                renderizarListaClientes();
             });
 
             cargarCatalogo('getProductos', (datos) => {
@@ -743,7 +763,7 @@
             btnEstado.onclick = () => {
                 document.getElementById("estadoClienteId").value = document.getElementById("abonoClienteId").value;
                 document.getElementById("estadoClienteSearch").value = document.getElementById("abonoClienteSearch").value;
-                showScreen('clientes', document.querySelectorAll('.nav-item')[2]);
+                showScreen('estado', document.querySelectorAll('.nav-item')[3]);
                 setTimeout(verEstadoCuenta, 300);
             };
             lista.appendChild(btnEstado);
@@ -798,6 +818,7 @@
                             configurarBuscador('clienteSearch', 'clienteId', 'clienteResultados', listadoClientes);
                             configurarBuscador('abonoClienteSearch', 'abonoClienteId', 'abonoClienteResultados', listadoClientes);
                             configurarBuscador('estadoClienteSearch', 'estadoClienteId', 'estadoClienteResultados', listadoClientes);
+                            renderizarListaClientes();
                         });
                     } else { mostrarToast(res.error, "error"); }
                 })
@@ -807,6 +828,35 @@
 
         function escapeHtml(text) {
             const div = document.createElement('div'); div.textContent = text; return div.innerHTML;
+        }
+
+        function renderizarListaClientes() {
+            const lista = document.getElementById("clientes-lista");
+            if (!lista) return;
+            const filtro = (document.getElementById("listaClientesFiltro")?.value || "").toLowerCase().trim();
+            const datos = filtro
+                ? listadoClientes.filter(c => c.nombre.toLowerCase().includes(filtro))
+                : listadoClientes;
+            if (!datos || datos.length === 0) {
+                lista.innerHTML = '<div class="empty-state">No hay clientes registrados.</div>';
+                return;
+            }
+            lista.innerHTML = "";
+            datos.forEach(c => {
+                const card = document.createElement('div'); card.className = 'item-card';
+                const title = document.createElement('div'); title.className = 'item-title'; title.textContent = c.nombre;
+                const details = document.createElement('div'); details.className = 'item-details';
+                details.textContent = (c.telefono || "Sin telefono") + (c.direccion ? " \u00b7 " + c.direccion : "");
+                card.appendChild(title); card.appendChild(details);
+                card.onclick = () => {
+                    document.getElementById("estadoClienteId").value = c.id;
+                    document.getElementById("estadoClienteSearch").value = c.nombre;
+                    showScreen('estado', document.querySelectorAll('.nav-item')[3]);
+                    setTimeout(verEstadoCuenta, 200);
+                };
+                card.style.cursor = 'pointer';
+                lista.appendChild(card);
+            });
         }
 
         function verEstadoCuenta() {

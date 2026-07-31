@@ -19,6 +19,46 @@ function getSheet(nombre) {
   return sh;
 }
 
+// ==================== MANEJO DE FECHAS ====================
+// IMPORTANTE: Google Sheets convierte automaticamente los strings tipo
+// "29/07/2026" a objetos Date reales al escribirlos con appendRow/setValue.
+// Esto significa que una misma columna puede contener, dependiendo de cuando
+// se guardo el registro, un string "dd/MM/yyyy" O un objeto Date. Comparar
+// fechas con === sobre strings (como hacia el codigo original) se rompe en
+// cuanto la celda es un Date real, por eso los reportes no encontraban
+// facturas. Estas funciones normalizan CUALQUIERA de los dos formatos a un
+// objeto Date puro (sin hora) para poder comparar de forma confiable.
+
+function parseFechaFlexible(valor) {
+  if (valor instanceof Date && !isNaN(valor.getTime())) {
+    return new Date(valor.getFullYear(), valor.getMonth(), valor.getDate());
+  }
+  const str = String(valor || "").trim();
+  if (!str) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const p = str.split("-"); // yyyy-MM-dd
+    return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+  }
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+    const p = str.split("/"); // dd/MM/yyyy
+    return new Date(parseInt(p[2], 10), parseInt(p[1], 10) - 1, parseInt(p[0], 10));
+  }
+  return null;
+}
+
+function esMismaFecha(a, b) {
+  if (!a || !b) return false;
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+// Devuelve siempre "dd/MM/yyyy" para mostrar en la UI, sin importar si la
+// celda de origen es un Date real o un string en cualquiera de los 2 formatos.
+function formatFechaDisplay(valor) {
+  const d = parseFechaFlexible(valor);
+  if (!d) return String(valor || "");
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), "dd/MM/yyyy");
+}
+
 function getNextFacturaNum() {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -143,7 +183,8 @@ function guardarCliente(data) {
     }
     const clienteId = getNextClienteId();
     const sh = getSheet(CONFIG.HOJAS.CLIENTES);
-    const fechaHoy = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
+    const hoy = new Date();
+    const fechaHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
     sh.appendRow([
       clienteId,
       data.nombre.trim(),
@@ -198,13 +239,14 @@ function guardarVenta(data) {
     const saldoPendiente = data.tipoVenta === "CREDITO" ? totalFactura - abonoInicial : 0;
     const estado = saldoPendiente <= 0.01 ? "PAGADA" : (data.tipoVenta === "CREDITO" ? "PENDIENTE" : "PAGADA");
 
-    const p = data.fecha.split("-");
-    const fechaStr = p[2] + "/" + p[1] + "/" + p[0];
+    const fechaVenta = parseFechaFlexible(data.fecha);
+    if (!fechaVenta) throw new Error("Fecha invalida");
+    const fechaStr = Utilities.formatDate(fechaVenta, Session.getScriptTimeZone(), "dd/MM/yyyy");
 
     const facturaRow = [
       facturaId,
       numeroFactura,
-      fechaStr,
+      fechaVenta,
       data.clienteId,
       data.tipoVenta,
       totalFactura,
@@ -239,7 +281,7 @@ function guardarVenta(data) {
           Utilities.getUuid().substring(0, 8),
           facturaId,
           data.clienteId,
-          fechaStr,
+          fechaVenta,
           abonoInicial,
           "Abono inicial"
         ]);
@@ -271,7 +313,7 @@ function getFacturasPendientes(clienteId) {
         facturas.push({
           facturaId: data[i][0],
           numeroFactura: data[i][1],
-          fecha: data[i][2],
+          fecha: formatFechaDisplay(data[i][2]),
           totalFactura: parseFloat(data[i][5]) || 0,
           totalAbonos: parseFloat(data[i][6]) || 0,
           saldoPendiente: parseFloat(data[i][7]) || 0
@@ -317,7 +359,8 @@ function guardarAbono(data) {
     }
 
     const abonoId = Utilities.getUuid().substring(0, 8);
-    const fechaHoy = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
+    const hoy = new Date();
+    const fechaHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
 
     shAbonos.appendRow([
       abonoId,
@@ -373,7 +416,7 @@ function getEstadoCuenta(clienteId) {
         facturas.push({
           facturaId: facturasData[i][0],
           numeroFactura: facturasData[i][1],
-          fecha: facturasData[i][2],
+          fecha: formatFechaDisplay(facturasData[i][2]),
           tipoVenta: facturasData[i][4],
           total: parseFloat(facturasData[i][5]) || 0,
           abonos: parseFloat(facturasData[i][6]) || 0,
@@ -390,7 +433,7 @@ function getEstadoCuenta(clienteId) {
         abonos.push({
           abonoId: abonosData[i][0],
           facturaId: abonosData[i][1],
-          fecha: abonosData[i][3],
+          fecha: formatFechaDisplay(abonosData[i][3]),
           monto: parseFloat(abonosData[i][4]) || 0,
           observaciones: abonosData[i][5] || ""
         });
@@ -412,16 +455,8 @@ function getEstadoCuenta(clienteId) {
 
 function getReporteDia(fechaStr) {
   try {
-    // Normalizar fecha de entrada (puede ser 2026-07-29 o 29/07/2026)
-    let fechaBusqueda = "";
-    if (fechaStr.includes("-")) {
-      const p = fechaStr.split("-");
-      fechaBusqueda = p[2] + "/" + p[1] + "/" + p[0]; // dd/MM/yyyy
-    } else if (fechaStr.includes("/")) {
-      fechaBusqueda = fechaStr;
-    } else {
-      fechaBusqueda = fechaStr;
-    }
+    const fechaObjetivo = parseFechaFlexible(fechaStr);
+    if (!fechaObjetivo) return { success: false, error: "Fecha invalida" };
 
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const shFacturas = ss.getSheetByName(CONFIG.HOJAS.FACTURAS);
@@ -432,13 +467,8 @@ function getReporteDia(fechaStr) {
     const facturasHoy = [];
 
     for (let i = 1; i < facturasData.length; i++) {
-      const fechaCelda = String(facturasData[i][2] || "").trim();
-      // Comparar con dd/MM/yyyy o yyyy-MM-dd
-      const p = fechaStr.split("-");
-      const fechaISO = fechaStr;
-      const fechaNormal = p[2] + "/" + p[1] + "/" + p[0];
-
-      if (fechaCelda === fechaNormal || fechaCelda === fechaISO) {
+      const fechaCelda = parseFechaFlexible(facturasData[i][2]);
+      if (esMismaFecha(fechaCelda, fechaObjetivo)) {
         const total = parseFloat(facturasData[i][5]) || 0;
         totalVentas += total; numFacturas++;
         if (facturasData[i][4] === "CONTADO") totalContado += total;
@@ -450,17 +480,15 @@ function getReporteDia(fechaStr) {
     const abonosData = shAbonos.getDataRange().getValues();
     let totalAbonos = 0;
     for (let i = 1; i < abonosData.length; i++) {
-      const fechaCelda = String(abonosData[i][3] || "").trim();
-      const p = fechaStr.split("-");
-      const fechaNormal = p[2] + "/" + p[1] + "/" + p[0];
-      if (fechaCelda === fechaNormal || fechaCelda === fechaStr) {
+      const fechaCelda = parseFechaFlexible(abonosData[i][3]);
+      if (esMismaFecha(fechaCelda, fechaObjetivo)) {
         totalAbonos += parseFloat(abonosData[i][4]) || 0;
       }
     }
 
     return {
       success: true,
-      fecha: fechaBusqueda,
+      fecha: formatFechaDisplay(fechaObjetivo),
       totalVentas: totalVentas,
       totalContado: totalContado,
       totalCredito: totalCredito,
