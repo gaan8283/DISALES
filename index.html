@@ -1562,7 +1562,8 @@ function prodForm(p){
       ${x.variable?'':`<label class="f"><span>1 ${esc(x.nombre||'unidad').toLowerCase()} trae cuántos ${u==='L'?'litros':u==='lb'?'libras':u}</span><input type="number" step="any" data-pf="${i}" data-f="factor" value="${esc(x.factor)}"></label>`}
       <label class="f"><span>Precio sugerido (C$)</span><input type="number" step="any" data-pf="${i}" data-f="precio" value="${esc(x.precio)}"></label></div>
       <div class="row"><label class="row small"><input type="checkbox" data-pf="${i}" data-f="variable" ${x.variable?'checked':''}> Peso variable (se anota el peso real)</label>${x.variable?`<label class="row small"><input type="checkbox" data-pf="${i}" data-f="porPeso" ${x.porPeso?'checked':''}> Se cobra por ${u}</label>`:''}<span class="spacer"></span>${f.presentaciones.length>1?`<button class="btn ghost sm danger" data-a="pfRm" data-i="${i}">Quitar</button>`:''}</div></div>`).join('')}
-    <button class="btn ghost" data-a="pfAdd" style="align-self:flex-start">+ Agregar presentación</button>
+    <div class="row"><button class="btn ghost" data-a="pfAdd">+ Agregar presentación</button>
+    ${f.unidad==='lb'&&!['Onza','Quintal','Saco'].every(n=>f.presentaciones.some(x=>x.nombre===n))?`<button class="btn ghost" data-a="pfStd">+ Onza, Quintal y Saco (precios calculados de la libra)</button>`:''}</div>
     <div id="pfErr"></div><button class="btn pri" data-a="prodSave">Guardar producto</button>`;
   };
   openModal('');S.modalRender();
@@ -1757,6 +1758,10 @@ const A={
   provNew:()=>provForm(),provEdit:t=>provForm(D().prov.get(t.dataset.id)),provSave:t=>provSave(t,t.dataset.id),
   prodNew:()=>prodForm(),prodEdit:t=>prodForm(D().prod.get(t.dataset.id)),prodSave:t=>prodSave(t),
   pfAdd:()=>{pfSync();S.pf.presentaciones.push({nombre:'',codigo:'',factor:1,precio:'',variable:false});S.modalRender()},
+  /* presentaciones estándar de un producto por libra, como las del catálogo importado */
+  pfStd:()=>{pfSync();const f=S.pf;const lb=f.presentaciones[0]||{};const pr=num(lb.precio),cod=String(lb.codigo||'').trim();
+    const add=(nombre,suf,factor,precio,variable)=>{if(!f.presentaciones.some(x=>x.nombre===nombre))f.presentaciones.push({nombre,codigo:cod?cod+'-'+suf:'',factor,precio,variable,porPeso:false})};
+    add('Onza','OZ',0.0625,pr?r2(pr/16):'',false);add('Quintal','QQ',100,pr?r2(pr*100):'',false);add('Saco','SC',null,0,true);S.modalRender()},
   pfRm:t=>{pfSync();S.pf.presentaciones.splice(+t.dataset.i,1);S.modalRender()},
   pfU:t=>{pfSync();S.pf.unidad=t.value;S.modalRender()},
   cajaDia:t=>{S.cajaDia=t.value||hoy();S.fondo=null;render()},fondo:t=>{S.fondo=t.value;render()},
