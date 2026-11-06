@@ -141,17 +141,28 @@ onAuthStateChanged(auth, async u => {
   }
   me = u;
   // primera vez con paquetes: pasa los datos de la versión anterior (no borra nada; se puede repetir)
-  try {
-    const m = await getDoc(doc(fs, 'meta/paquetes'));
-    if (!m.exists()) {
-      pantalla(`<div>Actualizando la base de datos…</div><div id="fbAv" style="color:#6A635B;font-size:.95rem">Esto pasa una sola vez.</div>`);
-      const n = await PQ.migrar(k => { const el = document.getElementById('fbAv'); if (el) el.textContent = `${k} registros pasados…`; });
-      await setDoc(doc(fs, 'meta/paquetes'), { v: 1, registros: n, fecha: serverTimestamp(), por: email });
+  // si recién se cambiaron las reglas en Firebase, pueden tardar hasta un minuto en activarse: se reintenta solo
+  for (let intento = 1; ; intento++) {
+    try {
+      const m = await getDoc(doc(fs, 'meta/paquetes'));
+      if (!m.exists()) {
+        pantalla(`<div>Actualizando la base de datos…</div><div id="fbAv" style="color:#6A635B;font-size:.95rem">Esto pasa una sola vez.</div>`);
+        const n = await PQ.migrar(k => { const el = document.getElementById('fbAv'); if (el) el.textContent = `${k} registros pasados…`; });
+        await setDoc(doc(fs, 'meta/paquetes'), { v: 1, registros: n, fecha: serverTimestamp(), por: email });
+      }
+      break;
+    } catch (e) {
+      const permiso = e && e.code === 'permission-denied';
+      if (permiso && intento < 8) {
+        pantalla(`<div>Conectando con la base de datos…</div><div style="color:#6A635B;font-size:.95rem">Firebase está activando los permisos (intento ${intento} de 8).</div>`);
+        await new Promise(r => setTimeout(r, 8000));
+        continue;
+      }
+      pantalla(`<div style="color:#B3261E">${permiso ? 'Tu cuenta no tiene permiso en la base de datos. Revisá que las reglas de Firestore estén publicadas.' : 'No se pudo conectar con la base de datos. Revisá el internet.'}</div>
+        <div style="color:#6A635B;font-size:.85rem">${(e && (e.message || e.code)) || e}</div>
+        <button onclick="location.reload()" style="appearance:none;border:0;border-radius:12px;padding:14px;font:600 1rem system-ui;background:#D2601C;color:#fff;cursor:pointer">Reintentar</button>`);
+      return;
     }
-  } catch (e) {
-    pantalla(`<div style="color:#B3261E">No se pudo actualizar la base de datos: ${(e && (e.message || e.code)) || e}</div>
-      <button onclick="location.reload()" style="appearance:none;border:0;border-radius:12px;padding:14px;font:600 1rem system-ui;background:#D2601C;color:#fff;cursor:pointer">Reintentar</button>`);
-    return;
   }
   quitarPantalla();
   // guarda el perfil propio y escucha los de los demás

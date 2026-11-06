@@ -1,4 +1,4 @@
-const C='disales-e11f00213f';
+const C='disales-85d14c2178';
 const BASE=['./','index.html','firebase-capa.js','paquetes.js','manifest.webmanifest','icono-192.png','icono-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(BASE)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))));self.clients.claim()});

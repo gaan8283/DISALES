@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DISALES</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#EE7B34">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="DISALES">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -216,12 +216,14 @@ tr.low td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
 @media (min-width:900px){.sumbar{bottom:12px}}
 /* barra del total en celular: total y Vaciar arriba; los dos botones lado a lado */
 @media (max-width:560px){
-  .sumbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px}
+  .sumbar{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"tot vac" "cot ok";gap:8px;padding:10px 12px}
   .sumbar .spacer{display:none}
-  .sumbar>div:first-child{align-self:center}
-  .sumbar [data-a=cartClear]{justify-self:end;min-height:36px;padding:6px 12px}
+  .sumbar>div:first-child{grid-area:tot;align-self:center}
+  .sumbar [data-a=cartClear]{grid-area:vac;justify-self:end;align-self:center;min-height:36px;padding:6px 12px}
+  .sumbar [data-a=cartToCot]{grid-area:cot}
+  .sumbar [data-a=confirmOpen]{grid-area:ok}
   .sumbar [data-a=cartToCot],.sumbar [data-a=confirmOpen]{white-space:normal;line-height:1.2;min-height:46px;padding:8px 10px}
-  .sumbar [data-a=saveCot]{grid-column:1/-1}
+  .sumbar [data-a=saveCot]{grid-area:cot/cot/ok/ok}
 }
 .results{display:flex;flex-direction:column;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px}
 .results:empty{display:none}
@@ -555,6 +557,8 @@ function vInicio(){
   const empty=!S.d.productos.length;
   return `<div class="page">
   ${empty&&S.ready.has('productos')?`<div class="note warn">Todavía no hay productos en el catálogo. Empezá en <a href="#catalogo">Catálogo</a> y luego cargá existencias y saldos en <a href="#ajustes">Ajustes</a>.</div>`:''}
+  ${(()=>{if(!S.admin||!S.ready.has('ventas')||!(S.d.ventas.length+S.d.pagos.length))return'';const u=S.aj.ultimoRespaldo;const dias=u?Math.floor((Date.now()-new Date(u))/864e5):null;
+    return dias==null||dias>=7?`<div class="note warn"><b>${dias==null?'Todavía no descargaste ningún respaldo.':`Hace ${dias} días del último respaldo.`}</b> Guardá una copia de seguridad (tarda segundos). <button class="btn sm" data-a="respaldo" style="margin-top:6px">Descargar respaldo ahora</button></div>`:''})()}
   ${S.uid?`<div class="small muted">Hola${S.names[S.uid]?', <b style="color:var(--ink)">'+esc(S.names[S.uid].split(' ')[0])+'</b>':''}. Lo que registres queda a tu nombre.</div>`:''}
   <div class="big">
     <a href="#vender" data-a="goVender">${ico('cart')}<div><b>Vender</b><br><span>Factura de contado o crédito</span></div></a>
@@ -1775,7 +1779,8 @@ async function respaldo(){
   try{const dl=await claude.use('downloads');if(!dl)return toast('Las descargas no están disponibles en esta vista.',1);
     const out={exportado:new Date().toISOString(),por:S.uid,ajustes:S.aj,seq:{}};COLS.forEach(c=>out[c]=S.d[c]);
     for(const k of SEQK){try{const x=await S.db.doc('seq/'+k).get();out.seq[k]=(x.exists&&num(x.data().n))||0}catch(e){}}
-    await dl.save({filename:`DISALES-respaldo-${hoy()}.json`,data:JSON.stringify(out,null,1)});toast('Respaldo descargado')}
+    await dl.save({filename:`DISALES-respaldo-${hoy()}.json`,data:JSON.stringify(out,null,1)});toast('Respaldo descargado');
+    if(S.admin){try{await put('ajustes/negocio',{ultimoRespaldo:new Date().toISOString()},true)}catch(e){}}}
   catch(e){if(e&&e.code==='declined')return;toast((e&&e.message)||'No se pudo descargar',1)}}
 function vAjustes(){
   const a=S.aj;
@@ -1807,14 +1812,15 @@ function vAjustes(){
    <div class="note warn small">No actives el enlace público: quien entra por enlace público solo puede ver, y además le quita el permiso de edición a las personas invitadas de fuera.</div>`}
    <div class="list">${[...new Set(COLS.flatMap(c=>S.d[c].map(x=>x.por)).filter(Boolean))].map(id=>`<div class="li"><div class="grow"><div class="t">${esc(who(id))}${id===S.uid?' (vos)':''}</div><div class="s">${eventos().filter(e=>e.por===id).length} operaciones registradas</div></div><button class="btn ghost sm" data-a="actU" data-v="${id}">Ver actividad</button></div>`).join('')||'<div class="empty small">Todavía nadie registró operaciones.</div>'}</div>
    <div class="small muted">Estás conectado como ${esc(who(S.uid))}${S.admin?' · propietario: solo vos cambiás los datos del negocio, la numeración y los permisos de venta sin existencia.':' · colaborador.'}</div></div>
-  <div class="card"><h2>Respaldo</h2><div class="small muted">Descarga una copia completa de todos los datos (clientes, productos, ventas, cobros, inventario). Conviene hacerlo cada semana.</div>
+  <div class="card"><h2>Respaldo</h2><div class="small muted">Descarga una copia completa de todos los datos (clientes, productos, ventas, cobros, inventario). Conviene hacerlo cada semana y guardar el archivo en Google Drive. Con ese archivo se recupera todo con "Restaurar respaldo".</div>
+   <div class="small"><b>Último respaldo:</b> ${S.aj.ultimoRespaldo?fdt(S.aj.ultimoRespaldo):'nunca'}</div>
    <div class="row"><button class="btn" data-a="respaldo">Descargar respaldo</button>${S.admin?'<button class="btn ghost" data-a="restOpen">Restaurar respaldo</button>':''}</div></div>
   ${S.admin?`<div class="card"><h2>Terminar la fase de prueba</h2><div class="small muted">Cuando terminen de probar, borrá los movimientos de prueba y fijá la numeración real (por ejemplo, la que sigue del talonario). El catálogo y los clientes se conservan.</div>
    <button class="btn ghost danger" data-a="resetOpen" style="align-self:flex-start">Reiniciar datos de prueba</button></div>`:''}
   </div>`;
 }
 async function ajNegSave(btn){btn.disabled=true;const g=id=>$('#'+id).value.trim();
-  try{await put('ajustes/negocio',{permitirSinExistencia:S.aj.permitirSinExistencia!==false,nombre:g('ajNom')||'DISALES',giro:g('ajGiro'),slogan:g('ajSlo'),ruc:g('ajRuc'),telefono:g('ajTel'),email:g('ajMail'),direccion:g('ajDir'),firma:g('ajFir'),
+  try{await put('ajustes/negocio',{permitirSinExistencia:S.aj.permitirSinExistencia!==false,ultimoRespaldo:S.aj.ultimoRespaldo||null,nombre:g('ajNom')||'DISALES',giro:g('ajGiro'),slogan:g('ajSlo'),ruc:g('ajRuc'),telefono:g('ajTel'),email:g('ajMail'),direccion:g('ajDir'),firma:g('ajFir'),
     pagoCheque:g('ajChq'),pagoBanco:g('ajBan'),pie:g('ajPie'),regimen:g('ajReg'),validezCot:num(g('ajVal'))||8,obsCot:$('#ajObs').value.trim()});toast('Datos guardados')}catch(e){toast(errMsg(e),1)}btn.disabled=false}
 async function numOpen(){
   const K=[['factura','Facturas'],['cotizacion','Cotizaciones'],['recibo','Recibos']];const cur={};
