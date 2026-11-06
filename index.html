@@ -672,7 +672,8 @@ function linesHtml(k){
       <label class="f"><span>Costo c/u (interno)</span><input type="number" inputmode="decimal" min="0" step="any" value="${esc(l.costo)}" data-k="${k}" data-l="${i}" data-f="costo" placeholder="opcional"></label></div></div>`;
     const p=D().prod.get(l.pid);if(!p)return'';const pr=pres(p,l.pi);const u=UNI[p.unidad]||'';
     const sub=k==='cart'?lineSub(l):k==='compra'?num(l.costo):null;
-    return `<div class="line"><div><div class="t" style="font-weight:600">${esc(p.nombre)}</div><div class="small muted">${k==='cart'&&num(l.precio)<=0?'<span class="pill p-warn">Sin precio</span> ':''}${k==='cart'&&l.ult?'<span class="pill p-n">Último precio al cliente</span> ':''}${k==='cart'&&num(l.precio)!==num(pr.precio)&&num(pr.precio)>0?'Catálogo '+money(pr.precio)+' · ':''}${pr.variable?'Peso real: '+qty(l.base)+' '+u:'= '+qty(l.base)+' '+u}${k!=='compra'?' · disponible '+UBIC.casa.split(' ')[1]+' '+qty(dispOf(p.id,'casa'))+', tramo '+qty(dispOf(p.id,'tramo')):''}</div></div>
+    const cdl=(l.barra&&barList(pr).includes(l.barra)?l.barra:barList(pr)[0])||pr.codigo||'';
+    return `<div class="line"><div><div class="t" style="font-weight:600">${esc(p.nombre)}</div><div class="small muted">${cdl?esc(cdl)+' · ':''}${k==='cart'&&num(l.precio)<=0?'<span class="pill p-warn">Sin precio</span> ':''}${k==='cart'&&l.ult?'<span class="pill p-n">Último precio al cliente</span> ':''}${k==='cart'&&num(l.precio)!==num(pr.precio)&&num(pr.precio)>0?'Catálogo '+money(pr.precio)+' · ':''}${pr.variable?'Peso real: '+qty(l.base)+' '+u:'= '+qty(l.base)+' '+u}${k!=='compra'?' · disponible '+UBIC.casa.split(' ')[1]+' '+qty(dispOf(p.id,'casa'))+', tramo '+qty(dispOf(p.id,'tramo')):''}</div></div>
     <div style="display:flex;gap:6px;align-items:flex-start">${sub!=null?`<span class="num" id="st-${k}-${i}" style="font-weight:600">${money(sub)}</span>`:''}<button class="btn ghost sm danger" data-a="rmLine" data-k="${k}" data-i="${i}" aria-label="Quitar">Quitar</button></div>
     <div class="ctl">
       <label class="f"><span>Presentación</span><select data-k="${k}" data-l="${i}" data-f="pi">${(p.presentaciones||[]).map((x,j)=>`<option value="${j}" ${j==l.pi?'selected':''}>${esc(x.nombre)}${x.variable?'':' ('+qty(x.factor)+' '+u+')'}</option>`).join('')}</select></label>
@@ -686,9 +687,9 @@ function recalcLine(l){if(l.libre){l.base=num(l.cant);return}const p=D().prod.ge
 function ultimoPrecio(cliId,pid,presN){if(!cliId)return null;let best=null;
   S.d.ventas.forEach(v=>{if(v.cliId!==cliId||v.estado==='anulada')return;(v.lineas||[]).forEach(l=>{if(l.pid===pid&&l.pres===presN&&num(l.precio)>0&&(!best||v.fecha>best.f))best={f:v.fecha,p:num(l.precio)}})});
   return best?best.p:null}
-function addLine(k,pid,pi){
+function addLine(k,pid,pi,barra){
   const p=D().prod.get(pid);const pr=pres(p,pi);
-  const l={pid,pi:+pi,cant:1,base:pr.variable?'':num(pr.factor)};
+  const l={pid,pi:+pi,cant:1,base:pr.variable?'':num(pr.factor)};if(barra)l.barra=barra;
   if(k==='cart'){l.precio=num(pr.precio);const lp=ultimoPrecio(S.cart.cliId,pid,pr.nombre);if(lp!=null){l.precio=lp;l.ult=true}}
   if(k==='compra')l.costo=p.costo!=null&&p.costo!==''&&!pr.variable?r2(num(p.costo)*num(pr.factor)):'';
   linesOf(k).push(l);if(k==='cart')saveCart();
@@ -719,7 +720,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.l!=null&&t.dataset.f){const k=t.dataset.k,l=linesOf(k)[+t.dataset.l];if(!l)return;
-    if(t.dataset.f==='pi'){l.pi=+t.value;const p=D().prod.get(l.pid),pr=pres(p,l.pi);if(k==='cart')l.precio=num(pr.precio);if(pr.variable)l.base='';if(k==='compra'&&p.costo!=null&&!pr.variable)l.costo=r2(num(p.costo)*num(pr.factor)*num(l.cant))}
+    if(t.dataset.f==='pi'){l.pi=+t.value;delete l.barra;const p=D().prod.get(l.pid),pr=pres(p,l.pi);if(k==='cart')l.precio=num(pr.precio);if(pr.variable)l.base='';if(k==='compra'&&p.costo!=null&&!pr.variable)l.costo=r2(num(p.costo)*num(pr.factor)*num(l.cant))}
     else l[t.dataset.f]=t.value;
     recalcLine(l);if(k==='cart')saveCart();
     if(k==='tras'){S.modalRender&&S.modalRender()}else{const el=$('#lines');if(el)el.innerHTML=linesHtml(k)}
@@ -754,7 +755,8 @@ const sinStockOK=()=>S.aj.permitirSinExistencia!==false;
 function lineaDoc(l){
   if(l.libre){const c=r3(num(l.cant));return{libre:true,pid:null,nombre:String(l.desc||'').trim(),pres:String(l.pres||'').trim(),codigo:'',unidad:'',cant:c,base:c,precio:r2(num(l.precio)),subtotal:r2(lineSub(l)),costo:l.costo===''||l.costo==null?null:num(l.costo)}}
   const p=D().prod.get(l.pid),x=pres(p,l.pi);
-  return{pid:l.pid,pi:l.pi,nombre:p.nombre,pres:x.nombre,codigo:x.codigo||'',unidad:p.unidad,variable:!!x.variable,porPeso:!!(x.variable&&x.porPeso),cant:r3(num(l.cant)),base:r3(num(l.base)),precio:r2(num(l.precio)),subtotal:r2(lineSub(l)),costo:(p.costo===''||p.costo==null)?null:num(p.costo)}}
+  const bs=barList(x),barra=l.barra&&bs.includes(l.barra)?l.barra:(bs[0]||'');
+  return{pid:l.pid,pi:l.pi,nombre:p.nombre,pres:x.nombre,codigo:x.codigo||'',barra,unidad:p.unidad,variable:!!x.variable,porPeso:!!(x.variable&&x.porPeso),cant:r3(num(l.cant)),base:r3(num(l.base)),precio:r2(num(l.precio)),subtotal:r2(lineSub(l)),costo:(p.costo===''||p.costo==null)?null:num(p.costo)}}
 function stockProblems(lineas,ubic){
   const need=needByPid(lineas),out=[];
   for(const pid in need){const p=D().prod.get(pid);const av=dispOf(pid,ubic);if(need[pid]-av>1e-9)out.push(`${p?p.nombre:'Producto'}: necesita ${qty(need[pid])} ${UNI[p?.unidad]||''}, hay ${qty(av)} disponibles en ${UBIC[ubic]}`)}
@@ -833,12 +835,13 @@ function enLetras(n){
   const t=w.length?un(w.join(' ')):'cero';
   return t.charAt(0).toUpperCase()+t.slice(1)+` córdobas con ${String(cent).padStart(2,'0')}/100`;
 }
+function codLinea(l){if(l.libre)return'';if(l.barra)return l.barra;if(l.barra==null&&l.pid){const p=D().prod.get(l.pid);const x=p&&((p.presentaciones||[])[l.pi]||(p.presentaciones||[]).find(y=>y.nombre===l.pres));const b=barList(x)[0];if(b)return b}return l.codigo||''}
 function modelVenta(v){
   const d=D(),b=bizHead(),cot=v.tipo==='cotizacion';
   const m={biz:b,kind:cot?'cot':'fac',titulo:cot?'Cotización':'Factura',numero:String(v.num??''),fecha:dmy(v.fecha),vence:cot?dmy(v.valida):dmy(v.vence),venceLbl:cot?'Válida hasta':'Vencimiento',
     cond:cot?null:(v.condicion==='contado'?'contado':'credito'),cliente:cliInfo(v.cliId),encabezado:v.titulo||'',
     cols:['Cod. Prod.','Descripción','Unidad','Cant.','Precio','Sub-Total'],
-    filas:(v.lineas||[]).map(l=>[l.codigo||'',l.nombre+(l.variable?` (${qty(l.base)} ${UNI[l.unidad]||''})`:''),uLbl(l),qty(l.cant),mny(l.precio),mny(l.subtotal)]),
+    filas:(v.lineas||[]).map(l=>[codLinea(l),l.nombre+(l.variable?` (${qty(l.base)} ${UNI[l.unidad]||''})`:''),uLbl(l),qty(l.cant),mny(l.precio),mny(l.subtotal)]),
     total:num(v.total),extra:[],notas:[]};
   if(!cot){const pi=num(v.pagoInicial&&v.pagoInicial.monto),ab=d.abonos[v.id]||0,cr=d.credito[v.id]||0;
     if(v.condicion!=='contado'||ab||cr){if(pi)m.extra.push(['Pagado al facturar',pi]);if(ab)m.extra.push(['Abonos',ab]);if(cr)m.extra.push(['Devoluciones',cr]);m.extra.push(['Saldo',d.saldo[v.id]])}
@@ -933,14 +936,14 @@ async function makePDF(m){
   y+=7;
   if(m.encabezado){doc.setFont('helvetica','bold');doc.setFontSize(12);const t=doc.splitTextToSize(cl(m.encabezado),R-M);doc.text(t,M,y);y+=t.length*5.5+2}
   if(m.kind==='rec'){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text('Recibimos de '+cl(m.cliente.nombre)+' la cantidad de:',M,y);y+=5;doc.setFont('helvetica','bold');doc.setFontSize(10.5);const t=doc.splitTextToSize(cl(m.letras)+' (C$ '+mny(m.total)+')',R-M);doc.text(t,M,y);y+=t.length*5+3}
-  const cw=m.kind==='rec'?[18,62,24,30,27.9,30]:[22,76,24,17,25,27.9];
+  const cw=m.kind==='rec'?[18,62,24,30,27.9,30]:[27,71,24,17,25,27.9];
   const head=()=>{let x=M;doc.setFillColor(...OR);doc.setDrawColor(0);doc.setLineWidth(.3);doc.setFont('helvetica','bold');doc.setFontSize(9);
     m.cols.forEach((c,i)=>{doc.setFillColor(...OR);doc.rect(x,y,cw[i],7,'FD');doc.setTextColor(0);doc.text(c,x+cw[i]/2,y+4.8,{align:'center'});x+=cw[i]});y+=7};
   head();doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setDrawColor(120);
   const rows=m.filas.concat(Array(Math.max(0,(m.kind==='rec'?2:10)-m.filas.length)).fill(m.cols.map(()=>'')));
   rows.forEach(f=>{const desc=doc.splitTextToSize(cl(f[1]),cw[1]-3);const h=Math.max(6.5,desc.length*4+2.5);
     if(y+h>250){doc.addPage();y=15;head();doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setDrawColor(120)}
-    let x=M;f.forEach((v,i)=>{doc.rect(x,y,cw[i],h);if(i===1)doc.text(desc,x+1.5,y+4.5);else if(i>=3)doc.text(cl(v),x+cw[i]-1.5,y+4.5,{align:'right'});else doc.text(doc.splitTextToSize(cl(v),cw[i]-2)[0]||'',x+1.5,y+4.5);x+=cw[i]});y+=h});
+    let x=M;f.forEach((v,i)=>{doc.rect(x,y,cw[i],h);if(i===1)doc.text(desc,x+1.5,y+4.5);else if(i>=3)doc.text(cl(v),x+cw[i]-1.5,y+4.5,{align:'right'});else{const t=cl(v);const fs=i===0&&t.length>11?7.6:9;doc.setFontSize(fs);doc.text(doc.splitTextToSize(t,cw[i]-2)[0]||'',x+1.2,y+4.5);doc.setFontSize(9)}x+=cw[i]});y+=h});
   if(y>205){doc.addPage();y=15}
   y+=3;const tx=R-70,top=y;
   doc.setFillColor(...OR);doc.setDrawColor(0);doc.rect(tx,y,70,8,'FD');doc.setFont('helvetica','bold');doc.setFontSize(11);
@@ -1705,10 +1708,10 @@ async function exportarExcel(btn){
       'Condición':v.apertura?'apertura':v.condicion,'Ubicación':UBIC[v.ubic]||'','Total':num(v.total),'Pagado al facturar':num(v.pagoInicial&&v.pagoInicial.monto),
       'Abonos':r2(d.abonos[v.id]||0),'Devoluciones':r2(d.credito[v.id]||0),'Saldo':r2(d.saldo[v.id]||0),'Estado':estadoFactura(v)[0],'Vence':v.vence||'','Registró':who(v.por),'Motivo anulación':v.anulaMotivo||''})),[10,11,26,11,12,11,11,10,10,10,18,11,16,24]),'Facturas');
     const det=[];fac.filter(v=>!v.apertura&&v.estado!=='anulada').forEach(v=>(v.lineas||[]).forEach(l=>det.push({'Factura':v.num,'Fecha':fx(v.fecha),'Cliente':cliName(v.cliId),
-      'Código':l.codigo||'','Producto':l.nombre,'Presentación':l.pres,'Cantidad':num(l.cant),'Cantidad en unidad de control':num(l.base),'Unidad':UNI[l.unidad]||'',
+      'Código':l.codigo||'','Código de barras':l.libre?'':(codLinea(l)!==(l.codigo||'')?codLinea(l):''),'Producto':l.nombre,'Presentación':l.pres,'Cantidad':num(l.cant),'Cantidad en unidad de control':num(l.base),'Unidad':UNI[l.unidad]||'',
       'Precio':num(l.precio),'Subtotal':num(l.subtotal),'Costo unitario':l.costo==null?'':num(l.costo),'Costo total':l.costo==null?'':r2(num(l.costo)*num(l.base)),
       'Ganancia':l.costo==null?'':r2(num(l.subtotal)-num(l.costo)*num(l.base)),'Vendedor':who(v.por)})));
-    X.utils.book_append_sheet(wb,hoja(X,det,[8,11,24,10,26,12,9,12,7,10,11,11,11,11,16]),'Detalle de ventas');
+    X.utils.book_append_sheet(wb,hoja(X,det,[8,11,24,10,15,26,12,9,12,7,10,11,11,11,11,16]),'Detalle de ventas');
     X.utils.book_append_sheet(wb,hoja(X,S.d.pagos.filter(p=>p.tipo==='cobro').sort((a,b)=>a.fecha<b.fecha?-1:1).map(p=>({'Recibo':p.num,'Fecha':fx(p.fecha),'Cliente':cliName(p.cliId),
       'Monto':num(p.monto),'Medio':MEDIO[p.medio]||p.medio||'','Aplicado a':(p.aplicaciones||[]).map(a=>{const v=d.ven.get(a.ventaId);return (v?(v.apertura?'saldo inicial':'F'+v.num):'?')+': '+mny(a.monto)}).join('; '),
       'Estado':p.estado==='anulado'?'Anulado':'Vigente','Registró':who(p.por)})),[8,11,26,11,13,40,10,16]),'Cobros');
@@ -1988,7 +1991,7 @@ function bip(ok){try{const a=bip.c||(bip.c=new (window.AudioContext||window.webk
 /* lectura de la cámara: ignora la misma lectura repetida mientras el código sigue enfocado */
 function scanLeido(raw){const c=limpiaCod(raw);if(!c||SC.pausa)return;const t=Date.now();if(c===SC.ult&&t-SC.ultT<1800){SC.ultT=t;return}SC.ult=c;SC.ultT=t;scanCodigo(c,SC.ctx)}
 /* qué hacer con un código según la pantalla */
-function scanCodigo(c,ctx){if(!c||!ctx)return;
+function scanCodigo(c,ctx){if(!c||!ctx)return;SC.leido=c;
   if(ctx==='pf'){bip(true);return pfPonCodigo(c)}
   const hits=buscarCod(c);
   if(!hits.length){bip(false);return scanNoExiste(c,ctx)}
@@ -2001,7 +2004,7 @@ function scanAgrega(k,h){if(!h||!h.p||!ctxLineas(k))return;const L=linesOf(k),pr
   const ex=!pr.variable&&L.find(l=>!l.libre&&l.pid===h.p.id&&l.pi===h.pi);
   if(ex){ex.cant=r3(num(ex.cant)+1);recalcLine(ex);if(k==='compra'&&h.p.costo!=null&&h.p.costo!=='')ex.costo=r2(num(h.p.costo)*num(pr.factor)*num(ex.cant));
     if(k==='cart')saveCart();if(k==='tras'){S.modalRender&&S.modalRender()}else render()}
-  else addLine(k,h.p.id,h.pi);
+  else{const bs=barList(pr),c=SC.leido||SC.cod||"";addLine(k,h.p.id,h.pi,bs.find(b=>b===c||b===c.replace(/^0(?=\d{12}$)/,'')||'0'+b===c)||'')}
   SC.n=(SC.n||0)+1;const txt=`${h.p.nombre} · ${pr.nombre}${ex?' (ahora '+qty(ex.cant)+')':''}`;
   if(SC.ctx&&!SC.opt.sinCam){scanPanel();const s=$('#scanSt');if(s)s.innerHTML=`<b style="color:var(--good)">✓ ${esc(txt)}</b><br>${SC.n} lectura(s). Seguí escaneando o tocá Listo.`}
   else{if(SC.ctx)scanClose();toast('✓ '+txt)}}
@@ -2149,7 +2152,7 @@ const A={
   exportarExcel:t=>exportarExcel(t),plantillaExcel:()=>plantillaExcel(),impOpen:()=>impOpen(),impSave:t=>impSave(t),
   restOpen:()=>restOpen(),restSave:t=>restSave(t),resetOpen:()=>resetOpen(),resetSave:t=>resetSave(t),
   cotToPedido:t=>{const v=D().ven.get(t.dataset.id);if(S.cart&&S.cart.num)liberarNum({...S.cart});S.cart={id:nid(),modo:'venta',cliId:v.cliId,cliSet:true,desdeCot:v.id,num:null,fecha:null,
-    titulo:v.titulo||'',lineas:v.lineas.filter(l=>l.libre||D().prod.get(l.pid)).map(l=>l.libre?{libre:true,desc:l.nombre,pres:l.pres,cant:l.cant,base:l.cant,precio:l.precio,costo:l.costo??''}:{pid:l.pid,pi:l.pi||0,cant:l.cant,base:l.base,precio:l.precio})};saveCart();closeModal();location.hash='vender';render()},
+    titulo:v.titulo||'',lineas:v.lineas.filter(l=>l.libre||D().prod.get(l.pid)).map(l=>l.libre?{libre:true,desc:l.nombre,pres:l.pres,cant:l.cant,base:l.cant,precio:l.precio,costo:l.costo??''}:{pid:l.pid,pi:l.pi||0,cant:l.cant,base:l.base,precio:l.precio,...(l.barra?{barra:l.barra}:{})})};saveCart();closeModal();location.hash='vender';render()},
   cotDel:async t=>{if(t.dataset.ok){try{await put('ventas/'+t.dataset.id,{estado:'anulada',anulaPor:S.uid||null,anulaFecha:new Date().toISOString()},true);closeModal();toast('Cotización anulada')}catch(e){toast(errMsg(e),1)}}else{t.dataset.ok=1;t.textContent='Tocá otra vez para anular'}},
   docTab:t=>{S.docTab=t.dataset.v;render()},docQ:t=>{S.docQ=t.value;render()},
   prodMov:t=>prodMov(t.dataset.id),trasOpen:()=>{if(!S.d.productos.length)return toast('Primero agregá productos.',1);trasOpen()},
