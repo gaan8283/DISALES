@@ -74,7 +74,8 @@ const user = {
 
 const downloads = {
   save: async ({ filename, data }) => {
-    const blob = data instanceof Blob ? data : new Blob([data], { type: /\.pdf$/i.test(filename) ? 'application/pdf' : 'application/json' });
+    const tipo = /\.pdf$/i.test(filename) ? 'application/pdf' : /\.xlsx$/i.test(filename) ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/json';
+    const blob = data instanceof Blob ? data : new Blob([data], { type: tipo });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
