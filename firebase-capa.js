@@ -10,8 +10,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc, updateDoc, getDoc,
-  deleteDoc, onSnapshot, runTransaction, serverTimestamp }
+  getDocs, deleteDoc, onSnapshot, runTransaction, serverTimestamp, FieldPath, deleteField }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { crearPaquetes, enPaquetes } from './paquetes.js';
 
 const CFG = window.DISALES_FB;
 const app = initializeApp(CFG.config);
@@ -29,8 +30,20 @@ const MAP = { 'permission-denied': 'invalid_argument', 'unauthenticated': 'revok
 const wrap = p => p.catch(e => { throw { code: MAP[e && e.code] || (e && e.code) || 'error', message: (e && e.message) || String(e) }; });
 const snapDoc = s => ({ exists: s.exists(), data: () => s.data() });
 
+const PQ = crearPaquetes({ doc, collection, setDoc, updateDoc, getDoc, getDocs, onSnapshot, FieldPath, deleteField }, fs);
+const errSnap = err => e => err && err({ code: MAP[e.code] || e.code, message: e.message });
+
 const db = {
   doc(path) {
+    const [c, id] = path.split('/');
+    if (enPaquetes(c) && id) return {   // ventas, cobros, productos… viven en paquetes (ver paquetes.js)
+      set: d => wrap(PQ.set(c, id, d)),
+      update: d => wrap(PQ.update(c, id, d)),
+      get: () => wrap(PQ.get(c, id)),
+      delete: () => wrap(PQ.delete(c, id)),
+      acquire: async () => ({ acquired: true }),
+      onSnapshot: () => () => {},
+    };
     const r = doc(fs, path);
     return {
       set: d => wrap(setDoc(r, d)),
@@ -42,6 +55,7 @@ const db = {
     };
   },
   collection(c) {
+    if (enPaquetes(c)) return { onSnapshot: (cb, err) => PQ.escuchar(c, cb, errSnap(err)) };
     return {
       onSnapshot: (cb, err) => onSnapshot(collection(fs, c), { includeMetadataChanges: true },
         s => cb({ docs: s.docs.map(d => ({ id: d.id, data: () => d.data() })), metadata: { hasPendingWrites: s.metadata.hasPendingWrites } }),
@@ -110,7 +124,7 @@ async function entrar(btn) {
 }
 function pedirEntrada(msg) {
   pantalla(`<div style="color:#6A635B">Ventas, cobros e inventario.<br>Entrá con tu cuenta de Google autorizada.</div>
-    <button id="fbBtn" style="appearance:none;border:0;border-radius:12px;padding:14px;font:600 1rem system-ui;background:#EE7B34;color:#1B1A18;cursor:pointer">Entrar con Google</button>
+    <button id="fbBtn" style="appearance:none;border:0;border-radius:12px;padding:14px;font:600 1rem system-ui;background:#D2601C;color:#fff;cursor:pointer">Entrar con Google</button>
     <div id="fbErr" style="color:#B3261E;font-size:.9rem">${msg || ''}</div>`);
   document.getElementById('fbBtn').onclick = e => entrar(e.currentTarget);
 }
@@ -126,6 +140,19 @@ onAuthStateChanged(auth, async u => {
     return;
   }
   me = u;
+  // primera vez con paquetes: pasa los datos de la versión anterior (no borra nada; se puede repetir)
+  try {
+    const m = await getDoc(doc(fs, 'meta/paquetes'));
+    if (!m.exists()) {
+      pantalla(`<div>Actualizando la base de datos…</div><div id="fbAv" style="color:#6A635B;font-size:.95rem">Esto pasa una sola vez.</div>`);
+      const n = await PQ.migrar(k => { const el = document.getElementById('fbAv'); if (el) el.textContent = `${k} registros pasados…`; });
+      await setDoc(doc(fs, 'meta/paquetes'), { v: 1, registros: n, fecha: serverTimestamp(), por: email });
+    }
+  } catch (e) {
+    pantalla(`<div style="color:#B3261E">No se pudo actualizar la base de datos: ${(e && (e.message || e.code)) || e}</div>
+      <button onclick="location.reload()" style="appearance:none;border:0;border-radius:12px;padding:14px;font:600 1rem system-ui;background:#D2601C;color:#fff;cursor:pointer">Reintentar</button>`);
+    return;
+  }
   quitarPantalla();
   // guarda el perfil propio y escucha los de los demás
   setDoc(doc(fs, 'usuarios/' + u.uid), { nombre: u.displayName || email, email, foto: u.photoURL || '', visto: serverTimestamp() }, { merge: true }).catch(() => {});
